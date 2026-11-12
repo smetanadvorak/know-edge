@@ -1,5 +1,6 @@
 // usage:
 //   npm run dev:obsidian    (repo root) -> watch mode, writes main.js + manifest.json + styles.css into test-vault/.obsidian/plugins/know-edge
+//   KE_VAULT=~/path/to/vault npm run dev:obsidian -> same, into that vault instead
 //   npm run build:obsidian  (repo root) -> production build, writes main.js + styles.css in packages/obsidian
 import esbuild from 'esbuild';
 import esbuild_svelte from 'esbuild-svelte';
@@ -7,7 +8,8 @@ import { builtinModules } from 'node:module';
 import { copyFileSync, mkdirSync, watch } from 'node:fs';
 
 const prod = process.argv[2] === 'production';
-const dev_dir = '../../test-vault/.obsidian/plugins/know-edge';
+const vault = process.env.KE_VAULT ?? '../../test-vault';
+const dev_dir = `${vault}/.obsidian/plugins/know-edge`;
 
 // source path -> file name in the plugin folder
 const static_files = { 'manifest.json': 'manifest.json', '../ui/styles.css': 'styles.css' };
