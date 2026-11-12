@@ -1,0 +1,12 @@
+// cloudflare worker serving packages/web/dist as static assets (no worker script).
+// usage:
+//   build:  npm ci && npm run build:web
+//   deploy: npx wrangler deploy   (done by workers builds on push to main)
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "know-edge",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./packages/web/dist"
+  }
+}
