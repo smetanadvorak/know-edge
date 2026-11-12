@@ -7,6 +7,8 @@
     and not showing the tree ahead, only how we got here (make showing the whole tree an option,
     the ahead part grayed out until answered).
     1. let's ask for now starting from the top. 2. depth first 4. we continue
+    I'd like the question and answer be centered. also question text appears twice on card.
+    Can there be also a bit more separation between them? Maybe present question in a div and answer in another div below?
 -->
 <script lang="ts">
   import { SvelteSet } from 'svelte/reactivity';
@@ -64,10 +66,14 @@
 
     <div class="ke-path">
       <span class="ke-level">L{step.item.level}</span>
-      {#each path as node (node.line)}
-        <span class="ke-crumb">{itemLabel(node)}</span><span class="ke-sep">›</span>
+      {#each path as node, i (node.line)}
+        <span class="ke-crumb">{itemLabel(node)}</span>
+        {#if i < path.length - 1 || step.item.title}<span class="ke-sep">›</span>{/if}
       {/each}
-      <span class="ke-crumb ke-current">{itemLabel(step.item)}</span>
+      <!-- without a heading label the fallback label is the question itself, shown below already -->
+      {#if step.item.title}
+        <span class="ke-crumb ke-current">{step.item.title}</span>
+      {/if}
     </div>
 
     {#if show_tree}
@@ -77,11 +83,10 @@
     {/if}
 
     {#key step.item.id}
-      <div class="ke-question" use:markdown={{ text: step.item.question, source: step.deck_path }}></div>
+      <div class="ke-card ke-question" use:markdown={{ text: step.item.question, source: step.deck_path }}></div>
 
       {#if revealed}
-        <hr />
-        <div class="ke-answer" use:markdown={{ text: step.item.answer, source: step.deck_path }}></div>
+        <div class="ke-card ke-answer" use:markdown={{ text: step.item.answer, source: step.deck_path }}></div>
         <div class="ke-ratings">
           {#each ratings as r (r.value)}
             <button class="ke-rate ke-rate-{r.value}" onclick={() => rate(r.value)}>{r.label}</button>

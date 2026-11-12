@@ -11,10 +11,31 @@
 .ke-tree ul { padding-left: 1.2em; }
 .ke-tree-label.ke-current { font-weight: 600; color: var(--text-accent); }
 .ke-tree-label.ke-ahead { color: var(--text-faint); }
-.ke-question, .ke-answer { margin: 1em 0; }
-.ke-show { margin-top: 1em; }
+.ke-card {
+  margin: 1em 0;
+  padding: 1em 1.5em;
+  text-align: center;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+}
+.ke-card > :first-child { margin-top: 0; }
+.ke-card > :last-child { margin-bottom: 0; }
+.ke-answer { margin-top: 1.5em; background: color-mix(in srgb, var(--text-normal) 3%, transparent); }
+/* lists and code stay left-aligned inside a centered card */
+.ke-card ul, .ke-card ol, .ke-card pre { display: inline-block; text-align: left; }
+.ke-show { display: block; margin: 1em auto 0; }
 .ke-ratings { display: flex; gap: 0.5em; margin-top: 1em; }
 .ke-ratings button { flex: 1; }
+/* rating colors: again red, hard yellow, good green, easy gray */
+.ke-rate-1 { --ke-rate: var(--color-red); }
+.ke-rate-2 { --ke-rate: var(--color-yellow); }
+.ke-rate-3 { --ke-rate: var(--color-green); }
+.ke-rate-4 { --ke-rate: var(--text-muted); }
+.ke-ratings .ke-rate {
+  background: color-mix(in srgb, var(--ke-rate) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ke-rate) 40%, transparent);
+}
+.ke-ratings .ke-rate:hover { background: color-mix(in srgb, var(--ke-rate) 28%, transparent); }
 .ke-done { color: var(--text-muted); text-align: center; margin-top: 3em; }
 .ke-decks table { width: 100%; }
 .ke-deck-row { cursor: pointer; }

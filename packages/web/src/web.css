@@ -14,6 +14,9 @@
   --font-monospace: ui-monospace, Menlo, monospace;
   --font-text: system-ui, -apple-system, sans-serif;
   --error: #c0392b;
+  --color-red: #e93147;
+  --color-yellow: #e0ac00;
+  --color-green: #08b94e;
   color-scheme: light;
 }
 
