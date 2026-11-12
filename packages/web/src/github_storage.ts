@@ -10,6 +10,7 @@
  *   if sync via github, can i host there too?
  *   1. yes  3. let's batch
  *   how is token handled and stored?  yes (token passed in from memory, never stored here)
+ *   (new deck button in the web editor) then let's add this featrure.
  */
 import type { LogEntry, Storage } from '@know-edge/core';
 import type { WebConfig } from './config';
@@ -181,6 +182,15 @@ export class GitHubStorage implements Storage
     const sha = this.tree.get(path);
     if (!sha) throw new Error(`File not found in repo: ${path}`);
     return this.serial(async () => (await this.load(path, sha)).text);
+  }
+
+  // create a new file; fails if it already exists
+  create(path: string, text: string): Promise<void>
+  {
+    return this.serial(async () =>
+    {
+      if (!(await this.put(path, text, null, `know-edge: create ${path}`))) throw new Error(`File already exists: ${path}`);
+    });
   }
 
   modify(path: string, fn: (text: string) => string): Promise<void>

@@ -9,6 +9,7 @@
     1. let's go with b directly
     2. yes. (pre-select from editor cursor)
     3. yes. (after save, keep the form open with the new card as parent)
+    (web: own empty message when there is no deck) then let's add this featrure.
 -->
 <script lang="ts">
   import type { Readable } from 'svelte/store';
@@ -19,12 +20,14 @@
     | { mode: 'child'; parent: Ref | null }
     | { mode: 'sibling'; ref: Ref };
 
-  let { deck, selected, actions, setIcon }: {
+  let { deck, selected, actions, setIcon, emptyText = 'Open a markdown file.' }: {
     deck: Readable<Deck | null>;
     selected: Readable<number | null>;
     actions: EditorActions;
     // puts a named (lucide) icon into an element
     setIcon: (el: HTMLElement, name: string) => void;
+    // shown when no deck is bound
+    emptyText?: string;
   } = $props();
 
   function icon(node: HTMLElement, name: string)
@@ -184,7 +187,7 @@
 
 <div class="ke-editor">
   {#if !$deck}
-    <div class="ke-done">Open a markdown file.</div>
+    <div class="ke-done">{emptyText}</div>
   {:else}
     <div class="ke-ed-header">
       <span class="ke-deck">{$deck.path}</span>

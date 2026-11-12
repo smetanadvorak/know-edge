@@ -11,6 +11,8 @@
     1. yes  3. let's batch
     how is token handled and stored?
     yes (encrypt the token with a passphrase + "forget token" button)
+    (a "New deck" button in the web editor: asks for a name, commits an empty <deck folder>/<name>.md, selects it;
+     web-specific empty message) then let's add this featrure.
 -->
 <script lang="ts">
   import { Engine, parseDeck, type Deck, type DeckStats, type EditorActions, type SessionStep } from '@know-edge/core';
@@ -128,6 +130,30 @@
   async function loadEditorDeck(): Promise<void>
   {
     editor_deck.set(editor_path ? parseDeck(editor_path, await storage!.read(editor_path)) : null);
+  }
+
+  async function newDeck(): Promise<void>
+  {
+    const name = prompt('Deck name')?.trim().replace(/\.md$/, '');
+    if (!name) return;
+    if (name.includes('..') || name.startsWith('/'))
+    {
+      error = 'Invalid deck name';
+      return;
+    }
+    const path = config.deck_folder.replace(/^\/+|\/+$/g, '') + '/' + name + '.md';
+    if (deck_paths.includes(path))
+    {
+      error = `Deck already exists: ${path}`;
+      return;
+    }
+    await run(async () =>
+    {
+      await storage!.create(path, '');
+      deck_paths = await storage!.deckPaths();
+      editor_path = path;
+      await loadEditorDeck();
+    });
   }
 
   // run a deck edit, then reload the deck in the editor
@@ -249,12 +275,15 @@
     {/key}
   {:else if page === 'editor'}
     <div class="ke-web-deck-select">
-      <select bind:value={editor_path} onchange={() => run(loadEditorDeck)}>
-        {#each deck_paths as path (path)}
-          <option value={path}>{path}</option>
-        {/each}
-      </select>
+      {#if deck_paths.length}
+        <select bind:value={editor_path} onchange={() => run(loadEditorDeck)}>
+          {#each deck_paths as path (path)}
+            <option value={path}>{path}</option>
+          {/each}
+        </select>
+      {/if}
+      <button onclick={newDeck} disabled={busy}>New deck</button>
     </div>
-    <DeckEditor deck={editor_deck} selected={editor_selected} {actions} {setIcon} />
+    <DeckEditor deck={editor_deck} selected={editor_selected} {actions} {setIcon} emptyText="No decks yet. Create one with “New deck”." />
   {/if}
 </main>
