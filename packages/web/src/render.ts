@@ -7,10 +7,12 @@
  *   can it have an alternative interfaece for when obsidian is not available? like a webpage?
  *   but based on the same "backend"
  */
-import markdown_it_katex from '@vscode/markdown-it-katex';
+import markdown_it_katex_module from '@vscode/markdown-it-katex';
 import { ArrowDown, ArrowUp, CornerDownRight, Plus, Trash2, createElement, type IconNode } from 'lucide';
 import MarkdownIt from 'markdown-it';
 
+// the package is commonjs with exports.default; the production build gives the module object, dev gives the function
+const markdown_it_katex = ((markdown_it_katex_module as any).default ?? markdown_it_katex_module) as MarkdownIt.PluginSimple;
 const md = new MarkdownIt({ linkify: true }).use(markdown_it_katex);
 
 export function render(el: HTMLElement, text: string, _source: string): void
