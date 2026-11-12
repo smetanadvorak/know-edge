@@ -1,0 +1,11 @@
+node_modules/
+packages/obsidian/main.js
+packages/obsidian/styles.css
+packages/web/dist/
+packages/web/.env
+test-vault/.obsidian/plugins/know-edge/main.js
+test-vault/.obsidian/plugins/know-edge/manifest.json
+test-vault/.obsidian/plugins/know-edge/styles.css
+test-vault/.obsidian/plugins/know-edge/data.json
+test-vault/.obsidian/workspace*.json
+test-vault/know-edge-logs/

@@ -1,0 +1,13 @@
+{
+  "name": "know-edge-workspace",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:obsidian": "npm run dev -w know-edge",
+    "build:obsidian": "npm run build -w know-edge",
+    "build:web": "npm run build -w @know-edge/web",
+    "dev:web": "npm run dev -w @know-edge/web"
+  }
+}
