@@ -1,8 +1,9 @@
 <!--
-  Deck editor panel: tree of the open deck file with add child / add sibling / move / edit / delete.
+  Deck editor panel: tree of the open deck file with add child / add sibling / move / indent / outdent / edit / delete.
   clicking a node opens the inline editor. the node under the editor cursor is highlighted.
-  after saving a new card the form stays open as a child of that card (to type a whole thread).
-  cmd/ctrl+enter saves, escape cancels.
+  after saving a new card the form stays open as a sibling of that card.
+  new card form: arrows (or ctrl+left / ctrl+right) move where the card lands, closer to the root or deeper.
+  shift/cmd/ctrl+enter saves, escape cancels.
 
   prompt:
     Can we establish rathern an interface for createion?
@@ -11,10 +12,12 @@
     3. yes. (after save, keep the form open with the new card as parent)
     (web: own empty message when there is no deck) then let's add this featrure.
     (change the level of an item: indent / outdent buttons; new card form continues as a sibling) I'd like to be able to change the level of an item. By default, new card is sibling, not child.
+    (new card placement in the form: buttons + keys) add controls that adjust where new card is to be landed: sibling of current or child, etc.
+    shift enter to save as it is now, ctlr left - move closer to root, ctrl right - move towards the child.
 -->
 <script lang="ts">
   import type { Readable } from 'svelte/store';
-  import { itemLabel, refMatches, refOf, type Deck, type Draft, type EditorActions, type Item, type Ref } from '@know-edge/core';
+  import { findItem, itemLabel, refMatches, refOf, type Deck, type Draft, type EditorActions, type Item, type Ref } from '@know-edge/core';
 
   type Editing =
     | { mode: 'edit'; ref: Ref }
@@ -80,6 +83,46 @@
     editing = null;
   }
 
+  // where the new card would land, one step closer to the root (-1) or deeper (1); null if not possible
+  function placementStep(e: Editing, dir: -1 | 1): Editing | null
+  {
+    if (!$deck || e.mode === 'edit') return null;
+    if (e.mode === 'sibling')
+    {
+      const item = findItem($deck, e.ref);
+      if (!item) return null;
+      if (dir > 0) return item.level < 6 ? { mode: 'child', parent: refOf(item) } : null;
+      return item.parent ? { mode: 'sibling', ref: refOf(item.parent) } : null;
+    }
+    if (e.parent === null)
+    {
+      // new multicard at the end of the file: deeper = child of the last root
+      const last = $deck.roots[$deck.roots.length - 1];
+      return dir > 0 && last ? { mode: 'child', parent: refOf(last) } : null;
+    }
+    const parent = findItem($deck, e.parent);
+    if (!parent) return null;
+    if (dir < 0) return { mode: 'sibling', ref: refOf(parent) };
+    const last = parent.children[parent.children.length - 1];
+    return last && last.level < 6 ? { mode: 'child', parent: refOf(last) } : null;
+  }
+
+  function movePlacement(dir: -1 | 1)
+  {
+    const next = editing && placementStep(editing, dir);
+    if (next) editing = next;
+  }
+
+  function placementText(e: Editing): string
+  {
+    if (!$deck || e.mode === 'edit') return '';
+    if (e.mode === 'child' && e.parent === null) return 'New multicard';
+    const ref = e.mode === 'child' ? e.parent! : e.ref;
+    const item = findItem($deck, ref);
+    const label = item ? itemLabel(item) || '(empty)' : '?';
+    return (e.mode === 'child' ? 'Child of: ' : 'Sibling of: ') + label;
+  }
+
   async function save()
   {
     if (!editing || !draft.question.trim()) return;
@@ -100,10 +143,15 @@
 
   function onFormKey(e: KeyboardEvent)
   {
-    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey))
+    if (e.key === 'Enter' && (e.shiftKey || e.metaKey || e.ctrlKey))
     {
       e.preventDefault();
       save();
+    }
+    else if (e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && editing?.mode !== 'edit')
+    {
+      e.preventDefault();
+      movePlacement(e.key === 'ArrowLeft' ? -1 : 1);
     }
     else if (e.key === 'Escape')
     {
@@ -142,6 +190,13 @@
 {#snippet form()}
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="ke-ed-form" onkeydown={onFormKey}>
+    {#if editing && editing.mode !== 'edit'}
+      <div class="ke-ed-placement">
+        <button class="clickable-icon" aria-label="Closer to root (Ctrl+Left)" disabled={!placementStep(editing, -1)} use:icon={'arrow-left'} onclick={() => movePlacement(-1)}></button>
+        <button class="clickable-icon" aria-label="Deeper (Ctrl+Right)" disabled={!placementStep(editing, 1)} use:icon={'arrow-right'} onclick={() => movePlacement(1)}></button>
+        <span class="ke-ed-placement-text">{placementText(editing)}</span>
+      </div>
+    {/if}
     <input type="text" placeholder="Label (optional)" bind:value={draft.label} />
     <textarea placeholder="Question" rows="3" bind:value={draft.question} use:focus></textarea>
     <textarea placeholder="Answer" rows="4" bind:value={draft.answer}></textarea>

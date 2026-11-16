@@ -58,3 +58,5 @@
 .ke-ed-form { display: flex; flex-direction: column; gap: 0.4em; padding: 0.5em; margin: 0.3em 0; border: 1px solid var(--interactive-accent); border-radius: 6px; }
 .ke-ed-form textarea { resize: vertical; font-family: var(--font-text); }
 .ke-ed-form-buttons { display: flex; gap: 0.5em; }
+.ke-ed-placement { display: flex; align-items: center; gap: 0.3em; }
+.ke-ed-placement-text { color: var(--text-muted); font-size: 0.9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
