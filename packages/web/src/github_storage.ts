@@ -1,7 +1,10 @@
 /**
  * Storage implementation on a GitHub repo (the vault), through the GitHub REST API, from the browser.
  * - file list and blob shas come from the git tree of the branch; file texts are cached by blob sha
- * - modify(): read latest sha, apply fn, PUT with that sha; on conflict re-read and retry once
+ * - modify(): edits are applied to a local copy right away and kept as a list of ops per file;
+ *   they are committed EDIT_DELAY_MS after the last edit (or with flushEdits()): read latest sha,
+ *   replay the ops on it, PUT with that sha; on conflict re-read and retry once. one commit per file.
+ *   pending edits live in memory only (ops are functions), so a closed tab loses unsaved ones.
  * - review log: entries are buffered (and kept in local storage so a closed tab loses nothing),
  *   then committed in batches to <log_folder>/log-<device>.jsonl
  * all GitHub calls run one at a time.
@@ -11,16 +14,25 @@
  *   1. yes  3. let's batch
  *   how is token handled and stored?  yes (token passed in from memory, never stored here)
  *   (new deck button in the web editor) then let's add this featrure.
+ *   (web: deck edits batched, committed 5 s after the last edit or with a save button) batch the actions instead of committing each action separately, add a button that saves right away, otherwise save after some time passed since last action (5 seconds?)
  */
 import type { LogEntry, Storage } from '@know-edge/core';
 import type { WebConfig } from './config';
 
 const FLUSH_COUNT = 10;
 const FLUSH_DELAY_MS = 120_000;
+const EDIT_DELAY_MS = 5_000;
 
 interface Cached
 {
   sha: string;
+  text: string;
+}
+
+// unsaved edits of one file: ops in order, and their result on the last known text
+interface PendingEdits
+{
+  ops: ((text: string) => string)[];
   text: string;
 }
 
@@ -56,8 +68,12 @@ export class GitHubStorage implements Storage
   private pending: LogEntry[];
   private queue: Promise<unknown> = Promise.resolve();
   private flush_timer: ReturnType<typeof setTimeout> | null = null;
+  private edits = new Map<string, PendingEdits>();
+  private edit_timer: ReturnType<typeof setTimeout> | null = null;
   // called when the number of unsynced reviews changes
   onPendingChange: (count: number) => void = () => {};
+  // called when the number of edits not yet committed changes
+  onEditsChange: (count: number) => void = () => {};
   // called when a background flush fails
   onError: (error: unknown) => void = () => {};
 
@@ -70,6 +86,13 @@ export class GitHubStorage implements Storage
   get pendingCount(): number
   {
     return this.pending.length;
+  }
+
+  get editCount(): number
+  {
+    let count = 0;
+    for (const e of this.edits.values()) count += e.ops.length;
+    return count;
   }
 
   private get pendingKey(): string
@@ -178,6 +201,8 @@ export class GitHubStorage implements Storage
 
   async read(path: string): Promise<string>
   {
+    const edited = this.edits.get(path);
+    if (edited) return edited.text;
     await this.ensureTree();
     const sha = this.tree.get(path);
     if (!sha) throw new Error(`File not found in repo: ${path}`);
@@ -193,19 +218,51 @@ export class GitHubStorage implements Storage
     });
   }
 
-  modify(path: string, fn: (text: string) => string): Promise<void>
+  // fn must give the same result when replayed on a newer text (it is re-run at commit time)
+  async modify(path: string, fn: (text: string) => string): Promise<void>
   {
+    if (!this.edits.has(path))
+    {
+      const current = await this.serial(() => this.latest(path));
+      // another edit may have started this file while we were reading
+      if (!this.edits.has(path)) this.edits.set(path, { ops: [], text: current?.text ?? '' });
+    }
+    const pending = this.edits.get(path)!;
+    const text = fn(pending.text);
+    if (text === pending.text) return;
+    pending.ops.push(fn);
+    pending.text = text;
+    this.onEditsChange(this.editCount);
+    if (this.edit_timer) clearTimeout(this.edit_timer);
+    this.edit_timer = setTimeout(() => this.flushEdits().catch((e) => this.onError(e)), EDIT_DELAY_MS);
+  }
+
+  // commit all unsaved edits, one commit per file
+  flushEdits(): Promise<void>
+  {
+    if (this.edit_timer) clearTimeout(this.edit_timer);
+    this.edit_timer = null;
     return this.serial(async () =>
     {
-      for (let attempt = 0; attempt < 2; attempt++)
+      for (const [path, pending] of [...this.edits])
       {
-        const current = await this.latest(path);
-        const old_text = current?.text ?? '';
-        const text = fn(old_text);
-        if (text === old_text) return;
-        if (await this.put(path, text, current?.sha ?? null, `know-edge: edit ${path}`)) return;
+        // edits made while this commit runs stay for the next one
+        const ops = pending.ops.slice();
+        let written: string | null = null;
+        for (let attempt = 0; attempt < 2 && written === null; attempt++)
+        {
+          const current = await this.latest(path);
+          const old_text = current?.text ?? '';
+          const text = ops.reduce((t, op) => op(t), old_text);
+          if (text === old_text) written = text;
+          else if (await this.put(path, text, current?.sha ?? null, `know-edge: ${ops.length} edit(s) to ${path}`)) written = text;
+        }
+        if (written === null) throw new Error(`Could not write ${path}: it keeps changing on GitHub`);
+        pending.ops.splice(0, ops.length);
+        if (pending.ops.length) pending.text = pending.ops.reduce((t, op) => op(t), written);
+        else this.edits.delete(path);
+        this.onEditsChange(this.editCount);
       }
-      throw new Error(`Could not write ${path}: it keeps changing on GitHub`);
     });
   }
 

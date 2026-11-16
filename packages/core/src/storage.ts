@@ -14,7 +14,8 @@ export interface Storage
   // paths of all deck files
   deckPaths(): Promise<string[]>;
   read(path: string): Promise<string>;
-  // read-modify-write of one file; fn gets the current text and returns the new one
+  // read-modify-write of one file; fn gets the current text and returns the new one.
+  // a storage may replay fn later on a newer text, so fn must not depend on anything else that changes
   modify(path: string, fn: (text: string) => string): Promise<void>;
   // all review log entries of all devices
   readLogs(): Promise<LogEntry[]>;

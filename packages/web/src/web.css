@@ -70,7 +70,8 @@ button.clickable-icon:hover { color: var(--text-normal); background: var(--backg
 .ke-web-header button.ke-active { background: var(--background-modifier-active-hover); }
 .ke-web-status { margin-left: auto; display: flex; gap: 0.5em; align-items: center; color: var(--text-muted); font-size: var(--font-ui-small); }
 .ke-web-error { background: var(--error); color: #fff; padding: 0.5em 1em; white-space: pre-wrap; }
-.ke-web-deck-select { padding: 0.5em 0.5em 0; max-width: 50em; margin: 0 auto; }
+.ke-web-deck-select { padding: 0.5em 0.5em 0; max-width: 50em; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 0.5em; align-items: center; }
+.ke-web-unsaved { color: var(--text-muted); font-size: var(--font-ui-small); }
 .ke-editor { max-width: 50em; margin: 0 auto; }
 
 .ke-settings { display: flex; flex-direction: column; gap: 0.6em; max-width: 30em; margin: 1em auto; padding: 0 1em; }

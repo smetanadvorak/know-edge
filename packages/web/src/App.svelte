@@ -2,6 +2,7 @@
   Web app shell: deck list, review, deck editor, settings.
   same engine and ui components as the obsidian plugin, storage = the vault repo on GitHub.
   reviews are committed in batches; unsynced count is shown in the header.
+  deck edits are committed 5 s after the last one, or with "Save now" in the editor.
 
   prompt:
     can it have an alternative interfaece for when obsidian is not available? like a webpage?
@@ -13,6 +14,8 @@
     yes (encrypt the token with a passphrase + "forget token" button)
     (a "New deck" button in the web editor: asks for a name, commits an empty <deck folder>/<name>.md, selects it;
      web-specific empty message) then let's add this featrure.
+    (browser "leave page?" prompt while deck edits are not committed) yes, add the leave page prompt
+    (web: deck edits batched, committed 5 s after the last edit or with a save button) batch the actions instead of committing each action separately, add a button that saves right away, otherwise save after some time passed since last action (5 seconds?)
 -->
 <script lang="ts">
   import { Engine, parseDeck, type Deck, type DeckStats, type EditorActions, type SessionStep } from '@know-edge/core';
@@ -34,6 +37,8 @@
   let busy = $state(false);
   let error = $state('');
   let pending = $state(0);
+  // deck edits not committed yet
+  let unsaved = $state(0);
   let connected = $state(false);
 
   // decrypted token, memory only
@@ -73,6 +78,7 @@
   {
     storage = new GitHubStorage(config, token);
     storage.onPendingChange = (count) => (pending = count);
+    storage.onEditsChange = (count) => (unsaved = count);
     storage.onError = (e) => (error = e instanceof Error ? e.message : String(e));
     pending = storage.pendingCount;
     engine = new Engine(storage, config);
@@ -217,8 +223,13 @@
     if (pending) sync();
   }
 
-  function forgetToken(): void
+  async function forgetToken(): Promise<void>
   {
+    if (unsaved)
+    {
+      await run(() => storage!.flushEdits());
+      if (unsaved) return;
+    }
     if (pending && !confirm(`${pending} review(s) are not synced yet. They stay in this browser and are committed after a new token is set. Forget the token?`)) return;
     config.token_enc = null;
     saveConfig(config);
@@ -233,6 +244,13 @@
   document.addEventListener('visibilitychange', () =>
   {
     if (document.hidden && storage?.pendingCount) storage.flush().catch((e) => (error = String(e)));
+    if (document.hidden && storage?.editCount) storage.flushEdits().catch((e) => (error = String(e)));
+  });
+
+  // ask before leaving while deck edits are not committed
+  window.addEventListener('beforeunload', (e) =>
+  {
+    if (storage?.editCount) e.preventDefault();
   });
 
   if (isConfigured(config)) page = 'unlock';
@@ -284,6 +302,8 @@
         </select>
       {/if}
       <button onclick={newDeck} disabled={busy}>New deck</button>
+      <button onclick={() => run(() => storage!.flushEdits())} disabled={!unsaved || busy}>Save now</button>
+      <span class="ke-web-unsaved">{unsaved ? `${unsaved} unsaved edit(s)` : 'All edits saved'}</span>
     </div>
     <DeckEditor deck={editor_deck} selected={editor_selected} {actions} {setIcon} emptyText="No decks yet. Create one with “New deck”." />
   {/if}

@@ -109,7 +109,8 @@ export class Engine
     let id = '';
     const ok = await this.editFile(path, (deck, lines, existing) =>
     {
-      id = newId(existing);
+      // keep the id when the op is replayed (batched storages re-run it at commit time)
+      if (!id) id = newId(existing);
       return addChild(deck, lines, parent, draft, id);
     });
     return ok ? id : null;
@@ -120,7 +121,7 @@ export class Engine
     let id = '';
     const ok = await this.editFile(path, (deck, lines, existing) =>
     {
-      id = newId(existing);
+      if (!id) id = newId(existing);
       return addSibling(deck, lines, ref, draft, id);
     });
     return ok ? id : null;
