@@ -10,6 +10,7 @@
     2. yes. (pre-select from editor cursor)
     3. yes. (after save, keep the form open with the new card as parent)
     (web: own empty message when there is no deck) then let's add this featrure.
+    (change the level of an item: indent / outdent buttons; new card form continues as a sibling) I'd like to be able to change the level of an item. By default, new card is sibling, not child.
 -->
 <script lang="ts">
   import type { Readable } from 'svelte/store';
@@ -92,8 +93,8 @@
       ? await actions.addChild(editing.parent, values)
       : await actions.addSibling(editing.ref, values);
     if (!new_id) return;
-    // continue the thread under the new card
-    editing = { mode: 'child', parent: { id: new_id, line: -1 } };
+    // continue with a sibling of the new card
+    editing = { mode: 'sibling', ref: { id: new_id, line: -1 } };
     draft = emptyDraft();
   }
 
@@ -165,6 +166,8 @@
           <button class="clickable-icon" aria-label="Add sibling" use:icon={'plus'} onclick={(e) => act(e, () => startSibling(item))}></button>
           <button class="clickable-icon" aria-label="Move up" use:icon={'arrow-up'} onclick={(e) => act(e, () => actions.move(refOf(item), -1))}></button>
           <button class="clickable-icon" aria-label="Move down" use:icon={'arrow-down'} onclick={(e) => act(e, () => actions.move(refOf(item), 1))}></button>
+          <button class="clickable-icon" aria-label="Outdent" use:icon={'arrow-left'} onclick={(e) => act(e, () => actions.shift(refOf(item), -1))}></button>
+          <button class="clickable-icon" aria-label="Indent" use:icon={'arrow-right'} onclick={(e) => act(e, () => actions.shift(refOf(item), 1))}></button>
           <button class="clickable-icon" aria-label="Delete" use:icon={'trash-2'} onclick={(e) => act(e, () => actions.remove(refOf(item), itemLabel(item)))}></button>
         </span>
       </div>

@@ -71,6 +71,7 @@ export class DeckEditorView extends ItemView
           addSibling: (ref: Ref, draft: Draft) => plugin.edited(plugin.engine.addSiblingItem(this.file!.path, ref, draft)),
           update: (ref: Ref, draft: Draft) => plugin.edited(plugin.engine.updateItem(this.file!.path, ref, draft)),
           move: (ref: Ref, dir: -1 | 1) => plugin.edited(plugin.engine.moveItem(this.file!.path, ref, dir)),
+          shift: (ref: Ref, dir: -1 | 1) => plugin.edited(plugin.engine.shiftItem(this.file!.path, ref, dir)),
           remove: (ref: Ref, label: string) =>
             new ConfirmModal(this.app, `Delete "${label}" and all its follow-ups?`, () => plugin.edited(plugin.engine.deleteItem(this.file!.path, ref))).open(),
         },

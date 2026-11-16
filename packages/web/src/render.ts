@@ -8,7 +8,7 @@
  *   but based on the same "backend"
  */
 import markdown_it_katex_module from '@vscode/markdown-it-katex';
-import { ArrowDown, ArrowUp, CornerDownRight, Plus, Trash2, createElement, type IconNode } from 'lucide';
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, CornerDownRight, Plus, Trash2, createElement, type IconNode } from 'lucide';
 import MarkdownIt from 'markdown-it';
 
 // the package is commonjs with exports.default; the production build gives the module object, dev gives the function
@@ -25,6 +25,8 @@ const icons: Record<string, IconNode> = {
   plus: Plus,
   'arrow-up': ArrowUp,
   'arrow-down': ArrowDown,
+  'arrow-left': ArrowLeft,
+  'arrow-right': ArrowRight,
   'trash-2': Trash2,
 };
 

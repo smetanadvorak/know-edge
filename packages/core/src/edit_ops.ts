@@ -1,6 +1,6 @@
 /**
  * Text operations on a deck file used by the deck editor panel:
- * add child, add sibling, update, delete, move up/down.
+ * add child, add sibling, update, delete, move up/down, indent/outdent.
  * each op gets the parsed deck and the file lines, mutates the lines in place, returns false if it could not apply.
  * items are found by id, or by heading line when the ref has no id.
  *
@@ -8,6 +8,7 @@
  *   Can we establish rathern an interface for createion?
  *   1. let's go with b directly (deck editor panel: tree, add child / sibling, edit, delete, move up/down,
  *      inline q/a editor, two-way sync with the file)
+ *   (change the level of an item: indent / outdent buttons; new card form continues as a sibling) I'd like to be able to change the level of an item. By default, new card is sibling, not child.
  */
 import { walk } from './parser';
 import type { Deck, Item } from './types';
@@ -32,6 +33,7 @@ export interface EditorActions
   update: (ref: Ref, draft: Draft) => Promise<boolean>;
   remove: (ref: Ref, label: string) => void;
   move: (ref: Ref, dir: -1 | 1) => Promise<boolean>;
+  shift: (ref: Ref, dir: -1 | 1) => Promise<boolean>;
 }
 
 export function refOf(item: Item): Ref
@@ -133,5 +135,50 @@ export function moveItem(deck: Deck, lines: string[], ref: Ref, dir: -1 | 1): bo
   const [first, second] = dir < 0 ? [other, item] : [item, other];
   const swapped = [...blockWithBlank(lines, second), ...blockWithBlank(lines, first)];
   lines.splice(first.line, second.end - first.line, ...swapped);
+  return true;
+}
+
+function deepestLevel(item: Item): number
+{
+  let level = item.level;
+  walk(item.children, (d) =>
+  {
+    level = Math.max(level, d.level);
+  });
+  return level;
+}
+
+// add (+1) or remove (-1) one '#' on every heading of the subtree
+function shiftHeadings(lines: string[], item: Item, dir: -1 | 1): void
+{
+  walk([item], (d) =>
+  {
+    lines[d.line] = dir > 0 ? '#' + lines[d.line] : lines[d.line].slice(1);
+  });
+}
+
+// dir 1: the item becomes the last child of its previous sibling.
+// dir -1: the item becomes the next sibling of its parent (moved after the parent's subtree).
+// the whole subtree moves with it.
+export function shiftItem(deck: Deck, lines: string[], ref: Ref, dir: -1 | 1): boolean
+{
+  const item = findItem(deck, ref);
+  if (!item) return false;
+  if (dir > 0)
+  {
+    const siblings = item.parent ? item.parent.children : deck.roots;
+    if (siblings.indexOf(item) === 0 || deepestLevel(item) >= 6) return false;
+    shiftHeadings(lines, item, 1);
+    return true;
+  }
+  const parent = item.parent;
+  if (!parent) return false;
+  shiftHeadings(lines, item, -1);
+  if (item.end === parent.end) return true;
+  const block = blockWithBlank(lines, item);
+  lines.splice(item.line, item.end - item.line);
+  const at = parent.end - (item.end - item.line);
+  if (at > 0 && lines[at - 1].trim() !== '') block.unshift('');
+  lines.splice(at, 0, ...block);
   return true;
 }

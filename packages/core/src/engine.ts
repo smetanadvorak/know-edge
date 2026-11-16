@@ -7,7 +7,7 @@
  *   but based on the same "backend"
  *   git suits me well / a vps / should cover both
  */
-import { addChild, addSibling, deleteItem, moveItem, updateItem, type Draft, type Ref } from './edit_ops';
+import { addChild, addSibling, deleteItem, moveItem, shiftItem, updateItem, type Draft, type Ref } from './edit_ops';
 import { addMissingIds, collectIds, newId } from './ids';
 import { parseDeck } from './parser';
 import { Scheduler } from './scheduler';
@@ -139,5 +139,11 @@ export class Engine
   moveItem(path: string, ref: Ref, dir: -1 | 1): Promise<boolean>
   {
     return this.editFile(path, (deck, lines) => moveItem(deck, lines, ref, dir));
+  }
+
+  // dir 1 = indent (child of the previous sibling), -1 = outdent (sibling after the parent)
+  shiftItem(path: string, ref: Ref, dir: -1 | 1): Promise<boolean>
+  {
+    return this.editFile(path, (deck, lines) => shiftItem(deck, lines, ref, dir));
   }
 }
