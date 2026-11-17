@@ -2,7 +2,7 @@
   Deck editor panel: tree of the open deck file with add child / add sibling / move / indent / outdent / edit / delete.
   clicking a node opens the inline editor. the node under the editor cursor is highlighted.
   after saving a new card the form stays open as a sibling of that card.
-  new card form: arrows (or ctrl+left / ctrl+right) move where the card lands, closer to the root or deeper.
+  new card form: arrows (or shift+left / shift+right) move where the card lands, closer to the root or deeper.
   shift/cmd/ctrl+enter saves, escape cancels.
 
   prompt:
@@ -14,6 +14,8 @@
     (change the level of an item: indent / outdent buttons; new card form continues as a sibling) I'd like to be able to change the level of an item. By default, new card is sibling, not child.
     (new card placement in the form: buttons + keys) add controls that adjust where new card is to be landed: sibling of current or child, etc.
     shift enter to save as it is now, ctlr left - move closer to root, ctrl right - move towards the child.
+    (cmd+arrows on mac, ctrl+arrows elsewhere) It seems that on mac it needs to be cmd+arrow, not ctrl+arrow
+    (shift+arrows instead) actually, ctrl arrow was bad idea from my part, because I use them a lot for putting cursor at the end of words. Maybe shift plus arrow on both platforms would be better
 -->
 <script lang="ts">
   import type { Readable } from 'svelte/store';
@@ -148,7 +150,7 @@
       e.preventDefault();
       save();
     }
-    else if (e.ctrlKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && editing?.mode !== 'edit')
+    else if (e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && editing?.mode !== 'edit')
     {
       e.preventDefault();
       movePlacement(e.key === 'ArrowLeft' ? -1 : 1);
@@ -192,8 +194,8 @@
   <div class="ke-ed-form" onkeydown={onFormKey}>
     {#if editing && editing.mode !== 'edit'}
       <div class="ke-ed-placement">
-        <button class="clickable-icon" aria-label="Closer to root (Ctrl+Left)" disabled={!placementStep(editing, -1)} use:icon={'arrow-left'} onclick={() => movePlacement(-1)}></button>
-        <button class="clickable-icon" aria-label="Deeper (Ctrl+Right)" disabled={!placementStep(editing, 1)} use:icon={'arrow-right'} onclick={() => movePlacement(1)}></button>
+        <button class="clickable-icon" aria-label="Closer to root (Shift+Left)" disabled={!placementStep(editing, -1)} use:icon={'arrow-left'} onclick={() => movePlacement(-1)}></button>
+        <button class="clickable-icon" aria-label="Deeper (Shift+Right)" disabled={!placementStep(editing, 1)} use:icon={'arrow-right'} onclick={() => movePlacement(1)}></button>
         <span class="ke-ed-placement-text">{placementText(editing)}</span>
       </div>
     {/if}
