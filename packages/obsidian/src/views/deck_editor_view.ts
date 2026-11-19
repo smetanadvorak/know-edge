@@ -9,7 +9,7 @@
 import { ItemView, Modal, Setting, TFile, type App, type WorkspaceLeaf } from 'obsidian';
 import { mount, unmount } from 'svelte';
 import { get, writable } from 'svelte/store';
-import { parseDeck, walk, type Deck, type Draft, type Item, type Ref } from '@know-edge/core';
+import { parseDeck, walk, type Deck, type Draft, type DropWhere, type Item, type Ref } from '@know-edge/core';
 import DeckEditor from '@know-edge/ui/DeckEditor.svelte';
 import type KnowEdgePlugin from '../main';
 import { setIcon } from './ui_glue';
@@ -72,6 +72,7 @@ export class DeckEditorView extends ItemView
           update: (ref: Ref, draft: Draft) => plugin.edited(plugin.engine.updateItem(this.file!.path, ref, draft)),
           move: (ref: Ref, dir: -1 | 1) => plugin.edited(plugin.engine.moveItem(this.file!.path, ref, dir)),
           shift: (ref: Ref, dir: -1 | 1) => plugin.edited(plugin.engine.shiftItem(this.file!.path, ref, dir)),
+          moveTo: (ref: Ref, target: Ref, where: DropWhere) => plugin.edited(plugin.engine.moveItemTo(this.file!.path, ref, target, where)),
           remove: (ref: Ref, label: string) =>
             new ConfirmModal(this.app, `Delete "${label}" and all its follow-ups?`, () => plugin.edited(plugin.engine.deleteItem(this.file!.path, ref))).open(),
         },

@@ -2,6 +2,7 @@
   Deck editor panel: tree of the open deck file with add child / add sibling / move / indent / outdent / edit / delete.
   clicking a node opens the inline editor. the node under the editor cursor is highlighted.
   after saving a new card the form stays open as a sibling of that card.
+  rows can be dragged (desktop): drop on the top / bottom part of a row = before / after it, middle = as its last child.
   new card form: arrows (or shift+left / shift+right) move where the card lands, closer to the root or deeper.
   shift/cmd/ctrl+enter saves, escape cancels.
 
@@ -15,11 +16,12 @@
     (new card placement in the form: buttons + keys) add controls that adjust where new card is to be landed: sibling of current or child, etc.
     shift enter to save as it is now, ctlr left - move closer to root, ctrl right - move towards the child.
     (cmd+arrows on mac, ctrl+arrows elsewhere) It seems that on mac it needs to be cmd+arrow, not ctrl+arrow
+    (drag and drop of items in the deck editor, desktop only) Can the cards in editor mode be dragged to put them in a different place in list or change their parent attribution? ... ok, desktop only.
     (shift+arrows instead) actually, ctrl arrow was bad idea from my part, because I use them a lot for putting cursor at the end of words. Maybe shift plus arrow on both platforms would be better
 -->
 <script lang="ts">
   import type { Readable } from 'svelte/store';
-  import { findItem, itemLabel, refMatches, refOf, type Deck, type Draft, type EditorActions, type Item, type Ref } from '@know-edge/core';
+  import { canMoveTo, findItem, itemLabel, refMatches, refOf, type Deck, type DropWhere, type Draft, type EditorActions, type Item, type Ref } from '@know-edge/core';
 
   type Editing =
     | { mode: 'edit'; ref: Ref }
@@ -182,6 +184,60 @@
     node.focus();
   }
 
+  // drag and drop
+  let drag_ref = $state<Ref | null>(null);
+  let drop = $state<{ ref: Ref; where: DropWhere } | null>(null);
+
+  function onDragStart(e: DragEvent, item: Item)
+  {
+    drag_ref = refOf(item);
+    e.dataTransfer!.effectAllowed = 'move';
+    // firefox starts a drag only with some data set
+    e.dataTransfer!.setData('text/plain', item.id ?? '');
+  }
+
+  function onDragOver(e: DragEvent, item: Item)
+  {
+    if (!drag_ref || !$deck) return;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const y = (e.clientY - rect.top) / rect.height;
+    const where: DropWhere = y < 0.3 ? 'before' : y > 0.7 ? 'after' : 'child';
+    const target = refOf(item);
+    if (!canMoveTo($deck, drag_ref, target, where))
+    {
+      drop = null;
+      return;
+    }
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'move';
+    drop = { ref: target, where };
+  }
+
+  function onDragLeave(e: DragEvent, item: Item)
+  {
+    // entering a child element of the row also fires dragleave
+    if ((e.currentTarget as HTMLElement).contains(e.relatedTarget as Node)) return;
+    if (drop && refMatches(drop.ref, item)) drop = null;
+  }
+
+  function onDrop(e: DragEvent)
+  {
+    e.preventDefault();
+    if (drag_ref && drop) actions.moveTo(drag_ref, drop.ref, drop.where);
+    onDragEnd();
+  }
+
+  function onDragEnd()
+  {
+    drag_ref = null;
+    drop = null;
+  }
+
+  function dropClass(item: Item): string
+  {
+    return drop && refMatches(drop.ref, item) ? `ke-drop-${drop.where}` : '';
+  }
+
   function act(e: MouseEvent, fn: () => void)
   {
     e.stopPropagation();
@@ -215,7 +271,18 @@
       {@render form()}
     {:else}
       <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
-      <div class="ke-ed-row" class:ke-selected={$selected === item.line} onclick={() => startEdit(item)}>
+      <div
+        class="ke-ed-row {dropClass(item)}"
+        class:ke-selected={$selected === item.line}
+        class:ke-dragging={drag_ref !== null && refMatches(drag_ref, item)}
+        draggable={editing === null}
+        ondragstart={(e) => onDragStart(e, item)}
+        ondragover={(e) => onDragOver(e, item)}
+        ondragleave={(e) => onDragLeave(e, item)}
+        ondrop={onDrop}
+        ondragend={onDragEnd}
+        onclick={() => startEdit(item)}
+      >
         <span class="ke-level">L{item.level}</span>
         <span class="ke-ed-label" class:ke-ed-structural={!item.question}>{itemLabel(item) || '(empty)'}</span>
         <span class="ke-ed-actions">

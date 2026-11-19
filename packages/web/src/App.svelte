@@ -193,6 +193,7 @@
     update: (ref, draft) => edit(() => engine!.updateItem(editor_path, ref, draft)),
     move: (ref, dir) => edit(() => engine!.moveItem(editor_path, ref, dir)),
     shift: (ref, dir) => edit(() => engine!.shiftItem(editor_path, ref, dir)),
+    moveTo: (ref, target, where) => edit(() => engine!.moveItemTo(editor_path, ref, target, where)),
     remove: (ref, label) =>
     {
       if (confirm(`Delete "${label}" and all its follow-ups?`)) edit(() => engine!.deleteItem(editor_path, ref));

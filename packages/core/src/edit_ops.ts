@@ -1,6 +1,6 @@
 /**
  * Text operations on a deck file used by the deck editor panel:
- * add child, add sibling, update, delete, move up/down, indent/outdent.
+ * add child, add sibling, update, delete, move up/down, indent/outdent, move to (drag and drop).
  * each op gets the parsed deck and the file lines, mutates the lines in place, returns false if it could not apply.
  * items are found by id, or by heading line when the ref has no id.
  *
@@ -9,6 +9,7 @@
  *   1. let's go with b directly (deck editor panel: tree, add child / sibling, edit, delete, move up/down,
  *      inline q/a editor, two-way sync with the file)
  *   (change the level of an item: indent / outdent buttons; new card form continues as a sibling) I'd like to be able to change the level of an item. By default, new card is sibling, not child.
+ *   (drag and drop of items in the deck editor, desktop only) Can the cards in editor mode be dragged to put them in a different place in list or change their parent attribution? ... ok, desktop only.
  */
 import { walk } from './parser';
 import type { Deck, Item } from './types';
@@ -34,7 +35,11 @@ export interface EditorActions
   remove: (ref: Ref, label: string) => void;
   move: (ref: Ref, dir: -1 | 1) => Promise<boolean>;
   shift: (ref: Ref, dir: -1 | 1) => Promise<boolean>;
+  moveTo: (ref: Ref, target: Ref, where: DropWhere) => Promise<boolean>;
 }
+
+// where a dragged item lands relative to the target: same level before / after it, or as its last child
+export type DropWhere = 'before' | 'after' | 'child';
 
 export function refOf(item: Item): Ref
 {
@@ -178,6 +183,48 @@ export function shiftItem(deck: Deck, lines: string[], ref: Ref, dir: -1 | 1): b
   const block = blockWithBlank(lines, item);
   lines.splice(item.line, item.end - item.line);
   const at = parent.end - (item.end - item.line);
+  if (at > 0 && lines[at - 1].trim() !== '') block.unshift('');
+  lines.splice(at, 0, ...block);
+  return true;
+}
+
+function isInside(node: Item, root: Item): boolean
+{
+  for (let n: Item | null = node; n; n = n.parent) if (n === root) return true;
+  return false;
+}
+
+function dropLevel(target: Item, where: DropWhere): number
+{
+  return where === 'child' ? target.level + 1 : target.level;
+}
+
+// false when the target is the item or inside its subtree, or the subtree would go deeper than 6
+export function canMoveTo(deck: Deck, ref: Ref, target_ref: Ref, where: DropWhere): boolean
+{
+  const item = findItem(deck, ref);
+  const target = findItem(deck, target_ref);
+  if (!item || !target || isInside(target, item)) return false;
+  return deepestLevel(item) + dropLevel(target, where) - item.level <= 6;
+}
+
+// moves the item with its subtree next to the target (before / after) or under it (last child), fixing heading levels
+export function moveTo(deck: Deck, lines: string[], ref: Ref, target_ref: Ref, where: DropWhere): boolean
+{
+  if (!canMoveTo(deck, ref, target_ref, where)) return false;
+  const item = findItem(deck, ref)!;
+  const target = findItem(deck, target_ref)!;
+  const delta = dropLevel(target, where) - item.level;
+  const block = lines.slice(item.line, item.end);
+  walk([item], (d) =>
+  {
+    block[d.line - item.line] = '#'.repeat(d.level + delta) + block[d.line - item.line].slice(d.level);
+  });
+  if (block[block.length - 1].trim() !== '') block.push('');
+  let at = where === 'before' ? target.line : target.end;
+  lines.splice(item.line, item.end - item.line);
+  // the target is outside the moved block, so the insert point is either before it or after it
+  if (at >= item.end) at -= item.end - item.line;
   if (at > 0 && lines[at - 1].trim() !== '') block.unshift('');
   lines.splice(at, 0, ...block);
   return true;
