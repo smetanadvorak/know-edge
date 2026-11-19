@@ -15,6 +15,7 @@
     (a "New deck" button in the web editor: asks for a name, commits an empty <deck folder>/<name>.md, selects it;
      web-specific empty message) then let's add this featrure.
     (browser "leave page?" prompt while deck edits are not committed) yes, add the leave page prompt
+    (deck list: loading / failed state instead of "No decks" while loading; readable GitHub error messages) The first thing that opens is Decks and it takes some time to load, and while its loading it is saying "No Decks". Better to show loading indication and say not Decks after some time if none loaded. Also is there error message if something went wrong with fetching from git?
     (edit the current card during review: "Edit card" button, inline form, keeps the session) I'd like to be able to edit cards during reviewing. For example, by button "Edit card".
     (web: deck edits batched, committed 5 s after the last edit or with a save button) batch the actions instead of committing each action separately, add a button that saves right away, otherwise save after some time passed since last action (5 seconds?)
 -->
@@ -48,6 +49,7 @@
   let engine: Engine | null = null;
 
   let decks = $state.raw<DeckStats[]>([]);
+  let decks_status = $state<'loading' | 'ready' | 'failed'>('loading');
   let steps = $state.raw<SessionStep[]>([]);
   let session_id = $state(0);
 
@@ -94,11 +96,14 @@
   async function showDecks(): Promise<void>
   {
     page = 'decks';
+    // keep the old list on screen while refreshing; show "loading" only the first time
+    if (decks_status !== 'ready') decks_status = 'loading';
     await run(async () =>
     {
       await storage!.refresh();
       decks = await engine!.allDeckStats();
     });
+    decks_status = error ? 'failed' : 'ready';
   }
 
   async function review(paths: string[] | null): Promise<void>
@@ -300,7 +305,7 @@
       <SettingsForm {config} onSave={saveSettings} onForget={forgetToken} />
     {/key}
   {:else if page === 'decks'}
-    <DeckList {decks} onOpen={(path: string) => review([path])} />
+    <DeckList {decks} status={decks_status} onOpen={(path: string) => review([path])} />
   {:else if page === 'review'}
     {#key session_id}
       <Review {render} {steps} onRate={rate} onEdit={editCard} />

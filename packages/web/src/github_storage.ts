@@ -14,6 +14,7 @@
  *   1. yes  3. let's batch
  *   how is token handled and stored?  yes (token passed in from memory, never stored here)
  *   (new deck button in the web editor) then let's add this featrure.
+ *   (deck list: loading / failed state instead of "No decks" while loading; readable GitHub error messages) The first thing that opens is Decks and it takes some time to load, and while its loading it is saying "No Decks". Better to show loading indication and say not Decks after some time if none loaded. Also is there error message if something went wrong with fetching from git?
  *   (web: deck edits batched, committed 5 s after the last edit or with a save button) batch the actions instead of committing each action separately, add a button that saves right away, otherwise save after some time passed since last action (5 seconds?)
  */
 import type { LogEntry, Storage } from '@know-edge/core';
@@ -53,6 +54,25 @@ function decodeBase64(b64: string): string
 function encodePath(path: string): string
 {
   return path.split('/').map(encodeURIComponent).join('/');
+}
+
+// readable message for a failed GitHub call
+async function githubError(res: Response, what: string): Promise<Error>
+{
+  const body = await res.text();
+  switch (res.status)
+  {
+    case 401:
+      return new Error('GitHub rejected the token (401). It may be expired or revoked: set a new one in Settings.');
+    case 403:
+      if (/rate limit/i.test(body)) return new Error('GitHub rate limit reached (403). Try again later.');
+      return new Error(`The token has no access (403) ${what}. Check its repository access and the Contents read/write permission.`);
+    case 404:
+      return new Error(`Not found on GitHub (404) ${what}. Check owner, repository and branch in Settings, and that the token can access the repository.`);
+    case 409:
+      if (/empty/i.test(body)) return new Error('The repository is empty: push at least one commit first.');
+  }
+  return new Error(`GitHub ${res.status} ${what}: ${body}`);
 }
 
 function folderPrefix(folder: string): string
@@ -123,21 +143,29 @@ export class GitHubStorage implements Storage
   {
     const { owner, repo } = this.config;
     const token = this.token;
-    return fetch(`https://api.github.com/repos/${owner}/${repo}${path}`, {
-      ...init,
-      cache: 'no-store',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-    });
+    try
+    {
+      return await fetch(`https://api.github.com/repos/${owner}/${repo}${path}`, {
+        ...init,
+        cache: 'no-store',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2022-11-28',
+        },
+      });
+    }
+    catch
+    {
+      // fetch only throws when no response came back at all
+      throw new Error('Cannot reach GitHub (offline, or the request was blocked by the browser or an extension).');
+    }
   }
 
   private async json(path: string): Promise<any>
   {
     const res = await this.api(path);
-    if (!res.ok) throw new Error(`GitHub ${res.status} on ${path}: ${await res.text()}`);
+    if (!res.ok) throw await githubError(res, `on ${path}`);
     return res.json();
   }
 
@@ -173,7 +201,7 @@ export class GitHubStorage implements Storage
   {
     const res = await this.api(`/contents/${encodePath(path)}?ref=${encodeURIComponent(this.config.branch)}`);
     if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`GitHub ${res.status} on ${path}: ${await res.text()}`);
+    if (!res.ok) throw await githubError(res, `reading ${path}`);
     const data = await res.json();
     return this.load(path, data.sha);
   }
@@ -185,7 +213,7 @@ export class GitHubStorage implements Storage
     const res = await this.api(`/contents/${encodePath(path)}`, { method: 'PUT', body: JSON.stringify(body) });
     // 409 / 422: the file changed since we read it
     if (res.status === 409 || res.status === 422) return false;
-    if (!res.ok) throw new Error(`GitHub ${res.status} writing ${path}: ${await res.text()}`);
+    if (!res.ok) throw await githubError(res, `writing ${path}`);
     const data = await res.json();
     this.cache.set(path, { sha: data.content.sha, text });
     this.tree.set(path, data.content.sha);

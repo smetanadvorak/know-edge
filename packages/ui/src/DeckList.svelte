@@ -4,15 +4,25 @@
   prompt:
     5. ok, what gui can we get?  (deck list view with due / new counts)
     deck is one file.
+    (deck list: loading / failed state instead of "No decks" while loading; readable GitHub error messages) The first thing that opens is Decks and it takes some time to load, and while its loading it is saying "No Decks". Better to show loading indication and say not Decks after some time if none loaded. Also is there error message if something went wrong with fetching from git?
 -->
 <script lang="ts">
   import type { DeckStats } from '@know-edge/core';
 
-  let { decks, onOpen }: { decks: DeckStats[]; onOpen: (path: string) => void } = $props();
+  let { decks, onOpen, status = 'ready' }: {
+    decks: DeckStats[];
+    onOpen: (path: string) => void;
+    // 'failed': the error itself is shown by the host
+    status?: 'loading' | 'ready' | 'failed';
+  } = $props();
 </script>
 
 <div class="ke-decks">
-  {#if decks.length === 0}
+  {#if status === 'loading'}
+    <div class="ke-done">Loading decks…</div>
+  {:else if status === 'failed'}
+    <div class="ke-done">Could not load decks.</div>
+  {:else if decks.length === 0}
     <div class="ke-done">No decks found.</div>
   {:else}
     <table>
