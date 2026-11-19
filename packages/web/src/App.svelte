@@ -15,10 +15,11 @@
     (a "New deck" button in the web editor: asks for a name, commits an empty <deck folder>/<name>.md, selects it;
      web-specific empty message) then let's add this featrure.
     (browser "leave page?" prompt while deck edits are not committed) yes, add the leave page prompt
+    (edit the current card during review: "Edit card" button, inline form, keeps the session) I'd like to be able to edit cards during reviewing. For example, by button "Edit card".
     (web: deck edits batched, committed 5 s after the last edit or with a save button) batch the actions instead of committing each action separately, add a button that saves right away, otherwise save after some time passed since last action (5 seconds?)
 -->
 <script lang="ts">
-  import { Engine, parseDeck, type Deck, type DeckStats, type EditorActions, type SessionStep } from '@know-edge/core';
+  import { Engine, parseDeck, refOf, type Deck, type Draft, type DeckStats, type EditorActions, type SessionStep } from '@know-edge/core';
   import DeckEditor from '@know-edge/ui/DeckEditor.svelte';
   import DeckList from '@know-edge/ui/DeckList.svelte';
   import Review from '@know-edge/ui/Review.svelte';
@@ -119,6 +120,17 @@
       // end of session: commit what is buffered
       if (step === steps[steps.length - 1]) await storage!.flush();
     });
+  }
+
+  async function editCard(step: SessionStep, draft: Draft): Promise<boolean>
+  {
+    let ok = false;
+    await run(async () =>
+    {
+      ok = await engine!.updateItem(step.deck_path, refOf(step.item), draft);
+      if (!ok) error = 'Edit not applied (item not found)';
+    });
+    return ok;
   }
 
   async function showEditor(): Promise<void>
@@ -290,7 +302,7 @@
     <DeckList {decks} onOpen={(path: string) => review([path])} />
   {:else if page === 'review'}
     {#key session_id}
-      <Review {render} {steps} onRate={rate} />
+      <Review {render} {steps} onRate={rate} onEdit={editCard} />
     {/key}
   {:else if page === 'editor'}
     <div class="ke-web-deck-select">

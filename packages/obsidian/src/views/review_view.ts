@@ -3,11 +3,12 @@
  *
  * prompt:
  *   5. ok, what gui can we get?
+ *   (edit the current card during review: "Edit card" button, inline form, keeps the session) I'd like to be able to edit cards during reviewing. For example, by button "Edit card".
  */
 import { ItemView, type WorkspaceLeaf } from 'obsidian';
 import { mount, unmount } from 'svelte';
 import type KnowEdgePlugin from '../main';
-import type { SessionStep } from '@know-edge/core';
+import { refOf, type Draft, type SessionStep } from '@know-edge/core';
 import Review from '@know-edge/ui/Review.svelte';
 import { obsidianRender } from './ui_glue';
 
@@ -36,6 +37,7 @@ export class ReviewView extends ItemView
         render: obsidianRender(this.app, this),
         steps,
         onRate: (step: SessionStep, rating: number) => this.plugin.engine.rate(step, rating),
+        onEdit: (step: SessionStep, draft: Draft) => this.plugin.edited(this.plugin.engine.updateItem(step.deck_path, refOf(step.item), draft)),
       },
     });
   }
